@@ -10,6 +10,7 @@ import { connectDB } from './config/db.js';
 import analysisRoutes from './routes/analysisRoutes.js';
 import fixerRoutes from './routes/fixerRoutes.js';
 import historyRoutes from './routes/historyRoutes.js';
+import { compareEndpoint } from './controllers/analysisController.js';
 import { notFoundHandler, errorHandler } from './middleware/errorMiddleware.js';
 
 // Load environment variables
@@ -43,7 +44,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, true); // Permissive in dev, or origin check
+      callback(null, true); // Permissive in dev
     }
   },
   credentials: true,
@@ -51,10 +52,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Rate Limiting (120 requests per 15 minutes per IP)
+// Rate Limiting (150 requests per 15 minutes per IP)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 120,
+  max: 150,
   message: {
     success: false,
     message: 'Too many requests from this IP address. Please slow down and try again shortly.'
@@ -75,7 +76,7 @@ app.get('/api/health', (req, res) => {
     product: 'Slide Roast API',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
-    geminiConfigured: !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE'),
+    geminiConfigured: !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' && process.env.GEMINI_API_KEY.trim() !== ''),
   });
 });
 
@@ -83,32 +84,41 @@ app.get('/api/health', (req, res) => {
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/fixer', fixerRoutes);
 app.use('/api/history', historyRoutes);
-// Compatibility alias for comparison
-app.post('/api/comparison', (req, res, next) => {
-  req.url = '/compare';
-  analysisRoutes(req, res, next);
-});
+// Direct comparison alias endpoint
+app.post('/api/comparison', compareEndpoint);
 
 // Error Handling Middleware
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Start Server
-const server = app.listen(PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`🔥 SLIDE ROAST BACKEND SERVER RUNNING`);
-  console.log(`📡 URL: http://localhost:${PORT}`);
-  console.log(`🛡️  Mode: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🤖 Gemini API: ${process.env.GEMINI_API_KEY ? 'Configured' : 'Missing key in .env'}`);
-  console.log(`======================================================\n`);
-});
-
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('Server terminated.');
+// Start Server if not in test mode
+let server = null;
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(PORT, () => {
+    console.log(`\n======================================================`);
+    console.log(`🔥 SLIDE ROAST BACKEND SERVER RUNNING`);
+    console.log(`📡 URL: http://localhost:${PORT}`);
+    console.log(`🛡️  Mode: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🤖 Gemini API: ${process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' && process.env.GEMINI_API_KEY.trim() !== '' ? 'Configured' : 'Missing key in .env'}`);
+    console.log(`======================================================\n`);
   });
-});
 
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`[Server Notice] Port ${PORT} is currently busy. Another instance of Slide Roast server is likely already running.`);
+    } else {
+      console.error('[Server Error]:', err);
+    }
+  });
+
+  // Handle graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received. Shutting down gracefully...');
+    server.close(() => {
+      console.log('Server terminated.');
+    });
+  });
+}
+
+export { app, server };
 export default app;

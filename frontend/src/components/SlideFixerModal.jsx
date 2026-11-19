@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Copy, Check, RefreshCw, Wand2, ArrowRight, Lightbulb } from 'lucide-react';
 import { fixSlide } from '../services/api';
 import { toast } from 'sonner';
@@ -16,6 +16,13 @@ export const SlideFixerModal = ({
   const [loading, setLoading] = useState(false);
   const [fixedData, setFixedData] = useState(existingFixedVersion);
   const [copied, setCopied] = useState(false);
+
+  // Sync state when slideNumber or existingFixedVersion changes
+  useEffect(() => {
+    setFixedData(existingFixedVersion);
+    setUserGoal('');
+    setCopied(false);
+  }, [slideNumber, existingFixedVersion, isOpen]);
 
   if (!isOpen) return null;
 

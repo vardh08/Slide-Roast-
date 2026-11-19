@@ -10,9 +10,6 @@ import { buildCustomerPrompt } from '../prompts/customerPrompt.js';
 import { buildFixerPrompt } from '../prompts/fixerPrompt.js';
 import { buildSummaryPrompt } from '../prompts/summaryPrompt.js';
 
-const PRIMARY_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const FALLBACK_MODEL = 'gemini-1.5-flash';
-
 /**
  * Returns an instance of GoogleGenAI or null if no key is configured
  */
@@ -21,19 +18,19 @@ export const getGeminiClient = () => {
   if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY_HERE' || apiKey.trim() === '') {
     return null;
   }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: apiKey.trim() });
 };
 
 /**
- * Safely parse JSON from raw LLM output, extracting from markdown fences if needed
+ * Safely parse JSON from raw LLM output, extracting from markdown fences and cleaning common JSON syntax issues
  */
 export const parseCleanJson = (rawText) => {
   if (!rawText) throw new Error('Received empty response from Gemini AI');
 
   let text = rawText.trim();
   // Strip ```json and ``` fences if present
-  if (text.startsWith('```')) {
-    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  if (text.includes('```')) {
+    text = text.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
   }
 
   // Find first { and last }
@@ -43,18 +40,27 @@ export const parseCleanJson = (rawText) => {
     text = text.substring(firstBrace, lastBrace + 1);
   }
 
+  // Clean trailing commas before closing brackets/braces (common LLM JSON quirk)
+  text = text.replace(/,\s*([\]}])/g, '$1');
+
   try {
     return JSON.parse(text);
   } catch (err) {
-    throw new Error(`Failed to parse AI JSON response: ${err.message}. Raw output snippet: ${text.slice(0, 200)}...`);
+    throw new Error(`Failed to parse AI JSON response: ${err.message}. Raw output snippet: ${text.slice(0, 180)}...`);
   }
 };
 
 /**
- * Execute Gemini model call with model fallback and single retry
+ * Execute Gemini model call with model fallback across supported models
  */
 export const callGeminiWithRetry = async (client, prompt, systemInstruction = '') => {
-  const modelsToTry = [PRIMARY_MODEL, FALLBACK_MODEL];
+  const modelsToTry = [
+    process.env.GEMINI_MODEL,
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.5-flash',
+  ].filter(Boolean);
+
   let lastError = null;
 
   for (const model of modelsToTry) {
@@ -76,7 +82,7 @@ export const callGeminiWithRetry = async (client, prompt, systemInstruction = ''
       return responseText;
     } catch (err) {
       lastError = err;
-      console.warn(`[Gemini SDK] Model ${model} call encountered issue: ${err.message}. Trying next available model if any.`);
+      console.warn(`[Gemini SDK] Model '${model}' attempt encountered: ${err.message}. Trying next available model if any.`);
     }
   }
 

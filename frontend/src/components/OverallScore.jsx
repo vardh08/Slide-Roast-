@@ -19,10 +19,12 @@ export const OverallScore = ({
     return { stroke: '#EF4444', text: 'text-rose-400', badge: 'bg-rose-500/10 text-rose-400 border-rose-500/30' };
   };
 
-  const theme = getScoreTheme(score);
+  const numScore = isNaN(Number(score)) ? 0 : Number(score);
+  const validScore = Math.min(100, Math.max(0, numScore));
+  const theme = getScoreTheme(validScore);
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
+  const strokeDashoffset = circumference - (validScore / 100) * circumference;
 
   const formattedDate = createdAt
     ? new Date(createdAt).toLocaleDateString('en-US', {
@@ -108,7 +110,7 @@ export const OverallScore = ({
             {/* Inner text */}
             <div className="absolute flex flex-col items-center justify-center text-center">
               <span className={`text-4xl font-black tracking-tight font-['JetBrains_Mono'] ${theme.text}`}>
-                {score}
+                {validScore}
               </span>
               <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
                 out of 100

@@ -32,14 +32,14 @@ export const compareAnalyses = async (currentAnalysisId, previousAnalysisId) => 
   const prevIssues = [];
   previous.judges?.forEach(j => {
     j.weaknesses?.forEach(w => {
-      prevIssues.push({ slideNumber: w.slideNumber, issue: w.issue });
+      prevIssues.push({ slideNumber: Number(w.slideNumber), issue: w.issue });
     });
   });
 
   const curIssues = [];
   current.judges?.forEach(j => {
     j.weaknesses?.forEach(w => {
-      curIssues.push({ slideNumber: w.slideNumber, issue: w.issue });
+      curIssues.push({ slideNumber: Number(w.slideNumber), issue: w.issue });
     });
   });
 
@@ -55,8 +55,15 @@ export const compareAnalyses = async (currentAnalysisId, previousAnalysisId) => 
     improvedAspects.push(`Overall pitch strength improved by +${scoreDiff} points`);
   }
 
-  // Remaining weaknesses
-  const remainingWeaknesses = curIssues.map(i => `Slide ${i.slideNumber}: ${i.issue}`);
+  // Deduplicated remaining weaknesses
+  const rawRemaining = curIssues.map(i => `Slide ${i.slideNumber}: ${i.issue}`);
+  const remainingWeaknesses = Array.from(new Set(rawRemaining)).slice(0, 5);
+
+  // Newly introduced issues
+  const rawNewIssues = curIssues
+    .filter(ci => !prevIssues.some(pi => pi.slideNumber === ci.slideNumber))
+    .map(ni => `Slide ${ni.slideNumber}: ${ni.issue}`);
+  const newIssues = Array.from(new Set(rawNewIssues)).slice(0, 4);
 
   return {
     previousAnalysis: {
@@ -82,11 +89,8 @@ export const compareAnalyses = async (currentAnalysisId, previousAnalysisId) => 
       : null,
     categoryDiffs,
     improvedAspects,
-    remainingWeaknesses: remainingWeaknesses.slice(0, 5),
-    newIssues: curIssues
-      .filter(ci => !prevIssues.some(pi => pi.slideNumber === ci.slideNumber))
-      .map(ni => `Slide ${ni.slideNumber}: ${ni.issue}`)
-      .slice(0, 4),
+    remainingWeaknesses,
+    newIssues,
   };
 };
 

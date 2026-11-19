@@ -297,7 +297,7 @@ export const Report = () => {
         onClose={() => setFixerOpen(false)}
         analysisId={analysis._id || analysis.id}
         slideNumber={activeSlideNumber}
-        originalText={activeSlideObj?.text || ''}
+        originalText={activeSlideObj?.text || activeSlideFeedback?.originalContent || ''}
         existingFixedVersion={activeSlideFeedback?.fixedVersion}
         onFixedSaved={handleFixedSaved}
       />

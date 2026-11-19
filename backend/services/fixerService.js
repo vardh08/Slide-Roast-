@@ -11,8 +11,9 @@ export const improveSlide = async ({ analysisId, slideNumber, userImprovementGoa
   }
 
   // Find slide text from extracted slides or slide feedback
-  const slideData = analysis.slides?.find(s => s.slideNumber === Number(slideNumber));
-  const slideText = slideData ? slideData.text : '';
+  const slideData = analysis.slides?.find(s => Number(s.slideNumber) === Number(slideNumber));
+  const feedbackData = analysis.slideFeedback?.find(sf => Number(sf.slideNumber) === Number(slideNumber));
+  const slideText = slideData?.text || feedbackData?.originalContent || '';
 
   // Gather criticisms on this slide across all judges
   const criticisms = [];

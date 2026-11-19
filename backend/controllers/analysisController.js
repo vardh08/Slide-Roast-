@@ -132,6 +132,16 @@ const runBackgroundRoast = async (analysisId, filePath, metadata) => {
 
     const scoreResult = calculateAggregateScore(judges);
 
+    // If zero judges succeeded (e.g. unconfigured GEMINI_API_KEY)
+    if (scoreResult.successfulCount === 0) {
+      const failedReason = judges.find(j => j.error)?.error || 'All AI judges were unable to evaluate the presentation. Please configure GEMINI_API_KEY in backend/.env.';
+      analysis.status = 'failed';
+      analysis.currentStep = 'Evaluation failed';
+      analysis.errorMessage = failedReason;
+      await analysis.save();
+      return;
+    }
+
     // STEP 7: Executive Summary & Slide-by-Slide Synthesis
     analysis.currentStep = 'Preparing detailed roast report & recommendations...';
     analysis.progressPercent = 95;
@@ -177,7 +187,7 @@ const runBackgroundRoast = async (analysisId, filePath, metadata) => {
       }));
     }
 
-    // Check if any judge failed
+    // Check if any judge failed partially
     const failedJudges = judges.filter(j => j.status === 'failed');
     if (failedJudges.length > 0) {
       analysis.scoreInterpretation = 'Incomplete';
