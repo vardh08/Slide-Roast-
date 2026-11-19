@@ -27,35 +27,21 @@ connectDB();
 
 // Security: Helmet
 app.use(helmet({
-  contentSecurityPolicy: false, // Allows flexible local dev fonts and preview
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS Configuration
-const allowedOrigins = [
-  process.env.CLIENT_URL || 'http://localhost:5173',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-];
-
+// CORS Configuration: Dynamic origin reflection for frictionless local dev and network requests
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Permissive in dev
-    }
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Rate Limiting (150 requests per 15 minutes per IP)
+// Rate Limiting (180 requests per 15 minutes per IP)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 150,
+  max: 180,
   message: {
     success: false,
     message: 'Too many requests from this IP address. Please slow down and try again shortly.'
@@ -94,10 +80,11 @@ app.use(errorHandler);
 // Start Server if not in test mode
 let server = null;
 if (process.env.NODE_ENV !== 'test') {
-  server = app.listen(PORT, () => {
+  // Bind on 0.0.0.0 to listen on all interfaces (localhost, 127.0.0.1, LAN)
+  server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n======================================================`);
     console.log(`🔥 SLIDE ROAST BACKEND SERVER RUNNING`);
-    console.log(`📡 URL: http://localhost:${PORT}`);
+    console.log(`📡 URL: http://localhost:${PORT} & http://127.0.0.1:${PORT}`);
     console.log(`🛡️  Mode: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🤖 Gemini API: ${process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE' && process.env.GEMINI_API_KEY.trim() !== '' ? 'Configured' : 'Missing key in .env'}`);
     console.log(`======================================================\n`);
@@ -105,7 +92,7 @@ if (process.env.NODE_ENV !== 'test') {
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.warn(`[Server Notice] Port ${PORT} is currently busy. Another instance of Slide Roast server is likely already running.`);
+      console.warn(`[Server Notice] Port ${PORT} is currently in use. If another instance is running, this is expected.`);
     } else {
       console.error('[Server Error]:', err);
     }

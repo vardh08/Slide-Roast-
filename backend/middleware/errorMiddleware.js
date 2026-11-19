@@ -12,12 +12,14 @@ export const errorHandler = (err, req, res, next) => {
   let message = err.message || 'An unexpected internal server error occurred';
 
   // Handle Multer upload errors
-  if (err instanceof multer.MulterError) {
+  if (err instanceof multer.MulterError || (err.message && (err.message.includes('PDF') || err.message.includes('Boundary') || err.message.includes('multipart')))) {
     statusCode = 400;
     if (err.code === 'LIMIT_FILE_SIZE') {
       message = 'File size limit exceeded. Pitch deck PDF must be under 10 MB.';
+    } else if (err.message && err.message.includes('Boundary')) {
+      message = 'Invalid multipart form upload. Please ensure your presentation PDF is selected.';
     } else {
-      message = `Upload error: ${err.message}`;
+      message = err.message || 'Error processing uploaded file.';
     }
   }
 

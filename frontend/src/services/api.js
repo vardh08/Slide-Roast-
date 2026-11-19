@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // 60s timeout for AI analysis requests
+  timeout: 120000, // 120s timeout for deck analysis requests
 });
 
 export const checkHealth = async () => {
@@ -13,12 +13,13 @@ export const checkHealth = async () => {
   return response.data;
 };
 
+/**
+ * Start pitch deck analysis
+ * NOTE: Do NOT set Content-Type header manually here.
+ * Axios automatically generates 'multipart/form-data; boundary=...' when passing FormData.
+ */
 export const startAnalysis = async (formData) => {
-  const response = await api.post('/analysis', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await api.post('/analysis', formData);
   return response.data;
 };
 

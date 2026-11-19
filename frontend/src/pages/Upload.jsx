@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   Sparkles,
   ArrowRight,
-  Info
+  Info,
+  ServerCrash
 } from 'lucide-react';
 import { startAnalysis } from '../services/api';
 import { toast } from 'sonner';
@@ -85,7 +86,6 @@ export const Upload = () => {
       if (validateFile(droppedFile)) {
         setFile(droppedFile);
         if (!projectName) {
-          // Auto-suggest project name from filename
           const cleanName = droppedFile.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
           setProjectName(cleanName);
         }
@@ -146,14 +146,21 @@ export const Upload = () => {
       }
 
       const response = await startAnalysis(formData);
-      if (response.success && response.analysisId) {
+      if (response && response.success && response.analysisId) {
         toast.success('Pitch deck uploaded! AI judges are analyzing...');
         navigate(`/analyzing/${response.analysisId}`);
       } else {
-        throw new Error(response.message || 'Failed to start analysis');
+        throw new Error(response?.message || 'Failed to start analysis');
       }
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Error uploading presentation';
+      console.error('Upload Error:', err);
+      let msg = err.response?.data?.message || err.message || 'Error uploading presentation';
+      
+      // Specifically handle connection/network errors
+      if (err.message === 'Network Error' || !err.response) {
+        msg = 'Cannot connect to backend server. Please verify your backend server is running on port 5000 (cd backend; npm run dev).';
+      }
+
       setErrorMessage(msg);
       toast.error(msg);
       setIsSubmitting(false);
@@ -193,7 +200,7 @@ export const Upload = () => {
             <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <span className="font-semibold block mb-0.5">Upload Error</span>
-              <span>{errorMessage}</span>
+              <span className="leading-relaxed">{errorMessage}</span>
             </div>
           </div>
         )}
